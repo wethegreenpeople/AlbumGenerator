@@ -5,6 +5,10 @@ import xml.etree.ElementTree as ET
 import random
 from io import BytesIO
 from bs4 import BeautifulSoup
+from colorsys import rgb_to_hsv, hsv_to_rgb
+import wikiquote
+import re
+import time
 
 def RandImage():
 	payload = {
@@ -42,15 +46,71 @@ def GetBandName():
 	except:
 		GetBandName()
 
-def MakeAlbum(BandName):
-	AlbumArt = Image.open("image.jpg", "r").convert('RGBA')
-	AlbumArt = AlbumArt.resize((500,500))
-	txt = Image.new('RGBA', AlbumArt.size, (255,255,255,0))
-	fnt = ImageFont.truetype('Besom.ttf', 80)
-	d = ImageDraw.Draw(txt)
-	d.text((10,60), BandName, font=fnt, fill=(255,255,255,255))
-	out = Image.alpha_composite(AlbumArt, txt)
-	out.save("album.png")
+def MakeAlbum(BandName, loc, timestamp):
+	try:
+		imageWidth, imageHeight = (500,500)
+		fontSize = 50
 
-DownloadImage(RandImage())
-MakeAlbum(GetBandName())
+		AlbumArt = Image.open("image.jpg", "r").convert('RGBA')
+		AlbumArt = AlbumArt.resize((500,500))
+		r, g, b, t = AlbumArt.getpixel((1, 1))
+		if ((250 - r) < 125):
+			r, g, b = 33, 21, 29
+		elif ((250 - r) > 125):
+			r, g, b = 255, 255, 255
+
+		bandText = Image.new('RGBA', AlbumArt.size, (r,g,b,0))
+		bandFont = ImageFont.truetype('Besom.ttf', fontSize)
+		draw = ImageDraw.Draw(bandText)
+		textWidth, textHeight = draw.textsize(str(BandName), font=bandFont)
+		while (textWidth > imageWidth):
+			fontSize -= 10
+			bandFont = ImageFont.truetype('Besom.ttf', fontSize)
+			draw = ImageDraw.Draw(bandText)
+			textWidth, textHeight = draw.textsize(str(BandName), font=bandFont)
+
+		draw.text((10,60), BandName, font=bandFont, fill=(r,g,b,255))
+		AlbumArt = Image.alpha_composite(AlbumArt, bandText)
+
+		r, g, b, t = AlbumArt.getpixel((1, 499))
+		if ((250 - r) < 125):
+			r, g, b = 33, 21, 29
+		elif ((250 - r) > 125):
+			r, g, b = 255, 255, 255
+
+		songText = Image.new('RGBA', AlbumArt.size, (r,g,b,0))
+		songFont = ImageFont.truetype('Cabana.otf', 40)
+		draw = ImageDraw.Draw(songText)
+		textWidth, textHeight = draw.textsize(GetSongTitle(), font=songFont)
+		draw.text(((imageWidth - textWidth)/2, 400), GetSongTitle(), font=songFont, fill=(r,g,b,255))
+		AlbumArt = Image.alpha_composite(AlbumArt, songText)
+
+		AlbumArt.save(loc + "album_" + str(timestamp) + ".png")
+	except:
+		MakeAlbum(GetBandName())
+
+def GetSongTitle():
+	try:
+		page = wikiquote.random_titles(max_titles=1)
+		quote = wikiquote.quotes(page[0], max_quotes=1)[0]
+		quote = re.split('; |, |\? |\. |\! |: ', quote)
+		quote = quote[0]
+		quoteLength = len([i for i in quote.split()])
+		if (quoteLength > 7):
+			quote = quote.split(' ')[:5]
+			quote = ' '.join(quote)
+
+		return quote
+	except:
+		time.sleep(1)
+		GetSongTitle()
+	
+
+def FakeAlbum(loc=""):
+	timestamp = str(int(time.time()))
+	DownloadImage(RandImage())
+	MakeAlbum(GetBandName(), loc, str(timestamp))
+
+	imageName = "album_" + str(timestamp) + ".png"
+
+	return imageName
